@@ -293,10 +293,23 @@ void castMPCToQPConstraintVectors(const Eigen::Matrix<double, 4, 1> &xMax, const
 
 int main(int argc, char **argv) {
     bool dataLogging = true;
-    std::vector<std::string> DataLog_append;
     std::ostringstream data_log_dir;
     std::chrono::system_clock::time_point nowTime = std::chrono::system_clock::now();
     std::time_t in_time_t = std::chrono::system_clock::to_time_t(nowTime);
+
+    data_log_dir << "/home/amg/tita_0309_ws/tita_ws/src/tita_bal_ign/data/dataLog_data_"
+                 << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << ".csv";
+    std::ofstream data_log_file;
+    if (dataLogging) {
+        data_log_file.open(data_log_dir.str());
+        data_log_file << "time;mode;"
+                      << "x_int;pitch;vel;ang_vel_y;"
+                      << "xRef_x;xRef_theta;xRef_dx;"
+                      << "u_cmd;u_L;u_R;"
+                      << "com_x;com_y;com_z;"
+                      << "roll;pitch_imu;yaw;"
+                      << "v_ref_cmd;v_L_ref;v_R_ref\n";
+    }
 
     RobotModel robot("/home/amg/tita_0309_ws/tita_ws/src/tita_bal_ign/model/urdf/tita2.urdf");
 
@@ -878,13 +891,15 @@ int main(int argc, char **argv) {
         t_global += elapsed;
         last_time = current_time;
 
+        double u_cmd = 0.0, u_L = 0.0, u_R = 0.0;
+
         if (solver.solveProblem() == OsqpEigen::ErrorExitFlag::NoError) {
             const Eigen::VectorXd z = solver.getSolution();
             const int nx = 4;
             const int idx_u0 = nx*(H+1);
 
             // 1) QP에서 나온 기본 토크
-            double u_cmd = z(idx_u0);
+            u_cmd = z(idx_u0);
 
             // 2) INIT에서 (GO/BACK → INIT 직후에만) 속도에 비례한 브레이크 토크 추가
             if (mode == INIT && (braking_from_go || braking_from_back)) {
@@ -963,8 +978,8 @@ int main(int argc, char **argv) {
             u_yaw_ff = std::clamp(u_yaw_ff, -u_yaw_ff_max, u_yaw_ff_max);
 
             double u_yaw_total = u_yaw + u_yaw_ff;
-            double u_L = u_cmd - u_yaw_total;
-            double u_R = u_cmd + u_yaw_total;
+            u_L = u_cmd - u_yaw_total;
+            u_R = u_cmd + u_yaw_total;
 
             // 7) 최종 좌/우 토크 한 번 더 제한 (모드별 uMin/uMax 기준)
             u_L = std::clamp(u_L, uMin(0), uMax(0));
@@ -986,24 +1001,29 @@ int main(int argc, char **argv) {
 
         rclcpp::spin_some(node);
 
-        DataLog_append.push_back(std::to_string(com_pos.x()) + ";" + std::to_string(com_pos.y()) + ";" + std::to_string(com_pos.z()) + ";" +
-                                 std::to_string(node->roll) + ";" + std::to_string(node->pitch) + ";" + std::to_string(node->yaw) + ";" +
-                                //  std::to_string(LW_pos.x()) + ";" + std::to_string(LW_pos.y()) + ";" + std::to_string(LW_pos.z()) + ";" +
-                                //  std::to_string(RW_pos.x()) + ";" + std::to_string(RW_pos.y()) + ";" + std::to_string(RW_pos.z()) + ";" +
-                                 std::to_string(-v_ref_cmd) + ";" + std::to_string(v_L_ref) + ";" + std::to_string(v_R_ref));
+        if (dataLogging && data_log_file.is_open()) {
+            const char* mode_str = (mode == INIT) ? "INIT" :
+                                   (mode == GO)   ? "GO"   :
+                                   (mode == BACK) ? "BACK" :
+                                   (mode == LEFT) ? "LEFT" : "RIGHT";
+            data_log_file << std::fixed << std::setprecision(6)
+                << t_global          << ";" << mode_str        << ";"
+                << x0(0)             << ";" << x0(1)           << ";" << x0(2) << ";" << x0(3) << ";"
+                << xRef(0)           << ";" << xRef(1)         << ";" << xRef(2) << ";"
+                << u_cmd             << ";" << u_L              << ";" << u_R   << ";"
+                << com_pos.x()       << ";" << com_pos.y()      << ";" << com_pos.z() << ";"
+                << node->roll        << ";" << node->pitch      << ";" << node->yaw  << ";"
+                << v_ref_cmd         << ";" << v_L_ref          << ";" << v_R_ref
+                << "\n";
+        }
 
         loop_rate.sleep();
     }
 
 
-        if(dataLogging) {
-        data_log_dir << "/home/amg/tita_0309_ws/tita_ws/src/tita_bal_ign/data/dataLog_data_" << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << ".csv";
-        std::ofstream data_log_file(data_log_dir.str());
-        data_log_file << "com_x;com_y;com_z;roll;pitch;yaw;velocity;LW_vel;RW_vel";
-        for (const auto& row : DataLog_append) {
-            data_log_file << row << std::endl;
-        }
+    if (dataLogging && data_log_file.is_open()) {
         data_log_file.close();
+        std::cout << "[DataLog] Saved: " << data_log_dir.str() << std::endl;
     }
 
     rclcpp::shutdown();

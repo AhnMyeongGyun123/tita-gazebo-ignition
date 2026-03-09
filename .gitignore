@@ -1,0 +1,29 @@
+# ROS2 colcon build artifacts
+build/
+install/
+log/
+tita_ws/build/
+tita_ws/install/
+tita_ws/log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

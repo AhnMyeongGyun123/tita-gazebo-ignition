@@ -1,6 +1,13 @@
-cd /home/amg/tita_0309_ws/tita_ws
-
+ # build
+ 
+cd /home/amg/tita_0309_ws/tita_ws                                                                                                                                       
+ 
 colcon build --symlink-install
+ 
+ # run & log
+ 
+cd /home/amg/tita_0309_ws
+ 
+./run_sim.sh
 
-source install/setup.bash
-ros2 launch tita_bal_ign tita_pos_2_gazebo.launch.py
+# claude resume

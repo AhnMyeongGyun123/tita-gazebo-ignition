@@ -297,8 +297,8 @@ int main(int argc, char **argv) {
     std::chrono::system_clock::time_point nowTime = std::chrono::system_clock::now();
     std::time_t in_time_t = std::chrono::system_clock::to_time_t(nowTime);
 
-    data_log_dir << "/home/amg/tita_0309_ws/tita_ws/src/tita_bal_ign/data/dataLog_data_"
-                 << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << ".csv";
+    data_log_dir << "/home/amg/tita_0309_ws/tita_ws/src/tita_bal_ign/data/"
+                 << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << "_result.csv";
     std::ofstream data_log_file;
     if (dataLogging) {
         data_log_file.open(data_log_dir.str());
